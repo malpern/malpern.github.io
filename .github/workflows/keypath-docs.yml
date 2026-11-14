@@ -1,0 +1,68 @@
+# Serves KeyPath's docs at https://malpern.github.io/KeyPath/ after the KeyPath
+# repository moved to an organization. Installed KeyPath builds open help pages
+# and download offline help from that exact address, and only trust that host,
+# so it must never change. This repository (malpern/malpern.github.io) is the
+# user site; GitHub serves a project site's path over it only while a project
+# repo of that name exists under malpern, which KeyPath no longer is.
+#
+# The docs' Jekyll source still lives on KeyPath's gh-pages branch; release
+# scripts keep pushing there. This workflow builds that branch and publishes it
+# under /KeyPath. KeyPath is public, so the checkout needs no token or secret.
+name: KeyPath docs
+
+on:
+  schedule:
+    - cron: "17 * * * *"   # hourly: pick up a docs push within the hour
+  workflow_dispatch:        # or run it by hand right after publishing
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  KEYPATH_REPO: malpern/KeyPath   # switch to malpern-labs/KeyPath right after the transfer
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out KeyPath docs source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.KEYPATH_REPO }}
+          ref: gh-pages
+          path: keypath-docs
+          persist-credentials: false
+
+      # The same builder GitHub's legacy Pages build used for this site (the
+      # github-pages gem), so the pages come out exactly as they did before.
+      - name: Build like GitHub Pages
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: keypath-docs
+          destination: _site/KeyPath
+
+      - name: Refuse to publish a site that lost its address
+        run: |
+          grep -q 'https://malpern.github.io/KeyPath' -r _site/KeyPath --include='*.html' \
+            || { echo "::error::Built site no longer points at malpern.github.io/KeyPath"; exit 1; }
+          test -d _site/KeyPath/offline-help || { echo "::error::offline-help missing"; exit 1; }
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

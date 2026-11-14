@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  KEYPATH_REPO: malpern/KeyPath   # switch to malpern-labs/KeyPath right after the transfer
+  KEYPATH_REPO: malpern-labs/KeyPath
 
 jobs:
   build:

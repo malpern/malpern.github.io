@@ -47,8 +47,13 @@ jobs:
           source: keypath-docs
           destination: _site/KeyPath
 
-      - name: Refuse to publish a site that lost its address
+      - name: Verify KeyPath routes before publishing
         run: |
+          test -s _site/KeyPath/guides/upgrading-from-1-0-1/index.html \
+            || { echo "::error::The 1.0.1 migration guide was not built at its public URL"; exit 1; }
+          grep -q 'Move from KeyPath 1.0.1 to the new runtime' \
+            _site/KeyPath/guides/upgrading-from-1-0-1/index.html \
+            || { echo "::error::The built 1.0.1 migration route has unexpected content"; exit 1; }
           grep -q 'https://malpern.github.io/KeyPath' -r _site/KeyPath --include='*.html' \
             || { echo "::error::Built site no longer points at malpern.github.io/KeyPath"; exit 1; }
           test -d _site/KeyPath/offline-help || { echo "::error::offline-help missing"; exit 1; }
